@@ -1,0 +1,18 @@
+# Same ByteTrack configuration for every NotifYC camera.
+
+tracker_type: bytetrack
+# Detections at or above this score can rejoin a lost ID.
+# Scores between track_low_thresh and this value only continue an active ID.
+track_high_thresh: 0.2
+# Weak boxes may continue an active track. They cannot start an ID.
+track_low_thresh: 0.1
+# A new ID needs a clear unmatched detection. A weak extra box cannot open one.
+new_track_thresh: 0.3
+# About 0.4 seconds at 30 fps. Covers a short miss. A lost track is not drawn,
+# so this does not invent a vehicle across a long gap.
+track_buffer: 12
+# Cost is 1 - IoU. 0.85 accepts a match from about 0.15 IoU upward, enough for
+# a fast vehicle, without treating a neighboring lane as the same object.
+match_thresh: 0.85
+# Pure IoU. Score fusion rejects a real match when confidence dips.
+fuse_score: False
