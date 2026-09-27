@@ -46,7 +46,9 @@ def load_tracks() -> dict:
 
 def method_notes() -> dict:
     return {
-        "coordinates": "raw Phase 3 center_x and center_y; display smoothing is not used",
+        "coordinates": (
+            "raw center_x and center_y stay on each sample; when a stabilized center exists it is the motion input"
+        ),
         "units": "velocities are pixels per second, not road speed",
         "filtered_center": (
             f"causal mean of up to {FILTER_WINDOW} raw centers; "
@@ -148,11 +150,19 @@ def analyze_track(observations: list[dict]) -> list[dict]:
 
     for item in observations:
         raw = (float(item["center_x"]), float(item["center_y"]))
+        if item.get("stabilized_center_x") is not None:
+            measured = (float(item["stabilized_center_x"]), float(item["stabilized_center_y"]))
+            box_w = float(item.get("stabilized_width", item["width"]))
+            box_h = float(item.get("stabilized_height", item["height"]))
+        else:
+            measured = raw
+            box_w = float(item["width"])
+            box_h = float(item["height"])
         frame = int(item["frame"])
         timestamp = float(item["timestamp"])
         gap = None if previous_frame is None else frame - previous_frame
         if gap is None or gap > MAX_GAP_FRAMES:
-            window = [raw]
+            window = [measured]
             filtered_prev = None
             previous_velocity = None
             previous_speed = None
@@ -160,7 +170,7 @@ def analyze_track(observations: list[dict]) -> list[dict]:
             recent_deltas = []
             recent_headings = []
         else:
-            window.append(raw)
+            window.append(measured)
             window = window[-FILTER_WINDOW:]
 
         filtered = (
@@ -172,7 +182,7 @@ def analyze_track(observations: list[dict]) -> list[dict]:
             dt = timestamp - previous_time
             dx = filtered[0] - filtered_prev[0]
             dy = filtered[1] - filtered_prev[1]
-            deadband = max(DEADBAND_FLOOR_PX, DEADBAND_BOX_FRACTION * max(item["width"], item["height"], 1))
+            deadband = max(DEADBAND_FLOOR_PX, DEADBAND_BOX_FRACTION * max(box_w, box_h, 1))
             if math.hypot(dx, dy) < deadband:
                 dx = 0.0
                 dy = 0.0
@@ -241,7 +251,7 @@ def analyze_track(observations: list[dict]) -> list[dict]:
                 "motion_change": round_or_none(motion_change, 3),
                 "abrupt_motion_change": abrupt,
                 "_heading": heading,
-                "_source_center": (float(item["center_x"]), float(item["center_y"])),
+                "_source_center": measured,
             }
         )
         filtered_prev = filtered

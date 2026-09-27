@@ -6,6 +6,7 @@ before association, and ByteTrack keeps the ID. The video shows one current
 box. tracks.json stores the raw detection box and its center.
 """
 
+import argparse
 import json
 import math
 from collections import defaultdict
@@ -20,6 +21,7 @@ from ultralytics.trackers.byte_tracker import BYTETracker
 from ultralytics.utils import YAML, IterableSimpleNamespace
 
 from process_video import ALLOWED_CLASSES, class_ids_for, draw_label, open_writer
+from visual_continuation import GeometryStabilizer, VisualContinuation
 from trajectories import TrajectoryStore
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -453,6 +455,8 @@ def process_clip(
     smoother = DisplaySmoother()
     memory = TrackMemory()
     tentative = TentativeTracks(confirm_frames)
+    continuation = VisualContinuation(width, height)
+    stabilizer = GeometryStabilizer()
     camera = camera_id(path.name)
     frames = []
     frame_index = 0
@@ -473,7 +477,25 @@ def process_clip(
             verbose=False,
         ):
             canvas = result.orig_img.copy()
+            gray = cv2.cvtColor(result.orig_img, cv2.COLOR_BGR2GRAY)
             detected = detection_boxes(result)
+            raw_detections = []
+            if len(detected):
+                for box, class_id, conf in zip(
+                    detected.xyxy.numpy(),
+                    detected.cls.numpy().astype(int),
+                    detected.conf.numpy(),
+                ):
+                    name = result.names[int(class_id)]
+                    if name not in ALLOWED_CLASSES:
+                        continue
+                    raw_detections.append(
+                        {
+                            "bbox": [float(value) for value in box],
+                            "class": name,
+                            "confidence": float(conf),
+                        }
+                    )
             if len(detected):
                 confidence = detected.conf
                 low = detected[(confidence >= LOW_CONFIDENCE) & (confidence < CONFIDENCE_THRESHOLD)]
@@ -543,6 +565,26 @@ def process_clip(
                     if index in used:
                         continue
                     untracked_detections += 1
+            propagated = continuation.extend(
+                gray,
+                objects,
+                raw_detections,
+                frame_index,
+                timestamp,
+                camera,
+                store,
+            )
+            for item in propagated:
+                if item["observation"] == "propagated":
+                    draw_label(
+                        canvas,
+                        item["bbox"],
+                        f"{item['class'].upper()} #{item['track_id']} FLOW",
+                        TRACK_COLOR,
+                    )
+            objects.extend(propagated)
+            for item in objects:
+                stabilizer.apply(item)
             memory.remember(objects, frame_index)
             if writer is not None:
                 writer.write(canvas)
@@ -741,16 +783,21 @@ def verify(paths: list[Path], tracks: dict) -> None:
 
 
 def main() -> None:
-    missing = [name for name in CLIP_NAMES if not (CAMERA_DIR / name).is_file()]
+    parser = argparse.ArgumentParser(description="Track the NotifYC demo clips.")
+    parser.add_argument("--only", default="", help="One clip filename, such as cam_001.mp4")
+    args = parser.parse_args()
+    names = [args.only] if args.only else CLIP_NAMES
+    missing = [name for name in names if not (CAMERA_DIR / name).is_file()]
     if missing:
         raise SystemExit("Missing clips:\n" + "\n".join(missing))
     if not MODEL_PATH.is_file():
         raise SystemExit(f"Model weights not found: {MODEL_PATH}")
 
     tracks_path = OUTPUT_DIR / "tracks.json"
+    tracks = {}
     if tracks_path.is_file():
-        previous = json.loads(tracks_path.read_text())
-        print_diagnostics("Previous tracking diagnostics", diagnose(previous))
+        tracks = json.loads(tracks_path.read_text())
+        print_diagnostics("Previous tracking diagnostics", diagnose(tracks))
 
     print(f"\nLoading {MODEL_PATH.name}")
     model = YOLO(str(MODEL_PATH))
@@ -759,15 +806,16 @@ def main() -> None:
     print("Classes:", ", ".join(model.names[index] for index in class_ids))
     print_settings(settings)
 
-    tracks = {}
     written = []
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    for name in CLIP_NAMES:
+    updated = {}
+    for name in names:
         camera = camera_id(name)
         output_path = OUTPUT_DIR / f"{name.removesuffix('.mp4')}_tracked.mp4"
         print(f"Tracking {camera}...", flush=True)
         record = process_clip(model, tracker, class_ids, CAMERA_DIR / name, output_path)
         tracks[camera] = record
+        updated[camera] = record
         written.append(output_path)
         print(
             f"  wrote {output_path.name} ({record['frames_processed']} frames, "
@@ -776,10 +824,15 @@ def main() -> None:
         )
 
     tracks_path.write_text(json.dumps(tracks, indent=2))
-    print_diagnostics("Updated tracking diagnostics", diagnose(tracks))
-    verify(written, tracks)
+    print_diagnostics("Updated tracking diagnostics", diagnose(updated))
+    if args.only:
+        for camera, record in updated.items():
+            ids = {item["track_id"] for frame in record["frames"] for item in frame["objects"]}
+            print(f"  {camera}: {len(ids)} track IDs")
+    else:
+        verify(written, tracks)
     print(f"\nWrote {tracks_path}")
-    print("View: python scripts/view_tracking_results.py")
+    print("View: python scripts/view_cam001_contact.py")
 
 
 if __name__ == "__main__":

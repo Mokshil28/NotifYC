@@ -95,6 +95,17 @@ def history(frames, track_id, frame_index, count):
     return found
 
 
+def motion_center(item):
+    if item.get("stabilized_center_x") is not None:
+        return float(item["stabilized_center_x"]), float(item["stabilized_center_y"])
+    return float(item["center_x"]), float(item["center_y"])
+
+
+def motion_box(item):
+    box = item.get("stabilized_bbox")
+    return box if box else item["bbox"]
+
+
 def velocity(samples):
     if len(samples) < 2:
         return None
@@ -104,8 +115,10 @@ def velocity(samples):
         dt = later["timestamp"] - earlier["timestamp"]
         if dt <= 0:
             continue
-        dx.append((later["center_x"] - earlier["center_x"]) / dt)
-        dy.append((later["center_y"] - earlier["center_y"]) / dt)
+        x0, y0 = motion_center(earlier)
+        x1, y1 = motion_center(later)
+        dx.append((x1 - x0) / dt)
+        dy.append((y1 - y0) / dt)
     if not dx:
         return None
     return (sum(dx) / len(dx), sum(dy) / len(dy))
@@ -143,8 +156,10 @@ def median_speed(samples):
         dt = later["timestamp"] - earlier["timestamp"]
         if dt <= 0:
             continue
-        dx = later["center_x"] - earlier["center_x"]
-        dy = later["center_y"] - earlier["center_y"]
+        x0, y0 = motion_center(earlier)
+        x1, y1 = motion_center(later)
+        dx = x1 - x0
+        dy = y1 - y0
         speeds.append(math.hypot(dx, dy) / dt)
     if not speeds:
         return None
@@ -176,8 +191,10 @@ def closing_stats(frames, first_id, second_id, frame_index):
     centers = []
     gaps = []
     for left, right in zip(sample_a, sample_b):
-        centers.append(math.hypot(left["center_x"] - right["center_x"], left["center_y"] - right["center_y"]))
-        gaps.append(edge_distance(left["bbox"], right["bbox"]))
+        left_center = motion_center(left)
+        right_center = motion_center(right)
+        centers.append(math.hypot(left_center[0] - right_center[0], left_center[1] - right_center[1]))
+        gaps.append(edge_distance(motion_box(left), motion_box(right)))
     drop = centers[0] - centers[-1]
     elapsed = sample_a[-1]["timestamp"] - sample_a[0]["timestamp"]
     center_speed = drop / elapsed if elapsed > 0 else 0.0
@@ -189,13 +206,13 @@ def closing_stats(frames, first_id, second_id, frame_index):
     projected = None
     if vector_a and vector_b:
         projected = project(
-            (sample_a[-1]["center_x"], sample_a[-1]["center_y"]),
+            motion_center(sample_a[-1]),
             vector_a,
-            (sample_b[-1]["center_x"], sample_b[-1]["center_y"]),
+            motion_center(sample_b[-1]),
             vector_b,
         )
-    box_a = sample_a[-1]["bbox"]
-    box_b = sample_b[-1]["bbox"]
+    box_a = motion_box(sample_a[-1])
+    box_b = motion_box(sample_b[-1])
     body_widths = [
         0.7 * (box_a[2] - box_a[0]),
         0.7 * (box_b[2] - box_b[0]),
@@ -205,8 +222,10 @@ def closing_stats(frames, first_id, second_id, frame_index):
     smaller_body = max(8.0, min(body_widths))
     rel_vx = (vector_b[0] - vector_a[0]) if vector_a and vector_b else 0.0
     rel_vy = (vector_b[1] - vector_a[1]) if vector_a and vector_b else 0.0
-    offset_x = sample_b[-1]["center_x"] - sample_a[-1]["center_x"]
-    offset_y = sample_b[-1]["center_y"] - sample_a[-1]["center_y"]
+    end_a = motion_center(sample_a[-1])
+    end_b = motion_center(sample_b[-1])
+    offset_x = end_b[0] - end_a[0]
+    offset_y = end_b[1] - end_a[1]
     offset = math.hypot(offset_x, offset_y)
     radial_closing = 0.0 if offset < 1 else -((rel_vx * offset_x) + (rel_vy * offset_y)) / offset
     paths_meet = (
@@ -238,8 +257,10 @@ def speed_stats(samples):
         dt = later["timestamp"] - earlier["timestamp"]
         if dt <= 0:
             continue
-        dx = later["center_x"] - earlier["center_x"]
-        dy = later["center_y"] - earlier["center_y"]
+        x0, y0 = motion_center(earlier)
+        x1, y1 = motion_center(later)
+        dx = x1 - x0
+        dy = y1 - y0
         speeds.append(math.hypot(dx, dy) / dt)
     if len(speeds) < 3:
         return None, None
@@ -290,7 +311,7 @@ def disrupted(frames, track_id, when):
     nearby = items_in_window(frames, track_id, when - 0.2, when + 0.25)
     if len(nearby) < 2:
         return True
-    confidences = [item["confidence"] for item in nearby]
+    confidences = [item["confidence"] for item in nearby if isinstance(item.get("confidence"), (int, float))]
     areas = [(item["bbox"][2] - item["bbox"][0]) * (item["bbox"][3] - item["bbox"][1]) for item in nearby]
     jumped = any(later > 1.7 * earlier or earlier > 1.7 * later for earlier, later in zip(areas, areas[1:]) if earlier > 1)
     present_before = any(
@@ -307,7 +328,8 @@ def disrupted(frames, track_id, when):
         if track_id not in frames[index]:
             missing_after += 1
     lost = present_before and missing_after >= 3
-    return (max(confidences) - min(confidences) >= 0.25) or jumped or lost
+    confidence_drop = bool(confidences) and max(confidences) - min(confidences) >= 0.25
+    return confidence_drop or jumped or lost
 
 
 def pair_rows(frames):
@@ -320,13 +342,13 @@ def pair_rows(frames):
             if len(together) < 8:
                 continue
             closest = min(together, key=lambda index: (
-                edge_distance(inset_box(frames[index][first_id]["bbox"]), inset_box(frames[index][second_id]["bbox"])),
-                edge_distance(frames[index][first_id]["bbox"], frames[index][second_id]["bbox"]),
+                edge_distance(inset_box(motion_box(frames[index][first_id])), inset_box(motion_box(frames[index][second_id]))),
+                edge_distance(motion_box(frames[index][first_id]), motion_box(frames[index][second_id])),
             ))
             item_a = frames[closest][first_id]
             item_b = frames[closest][second_id]
-            bbox_gap = edge_gaps(item_a["bbox"], item_b["bbox"])
-            body_gap = edge_gaps(inset_box(item_a["bbox"]), inset_box(item_b["bbox"]))
+            bbox_gap = edge_gaps(motion_box(item_a), motion_box(item_b))
+            body_gap = edge_gaps(inset_box(motion_box(item_a)), inset_box(motion_box(item_b)))
             if math.hypot(*bbox_gap) > 90 and math.hypot(*body_gap) > 90:
                 continue
             motion = closing_stats(frames, first_id, second_id, closest)
@@ -365,7 +387,7 @@ def pair_rows(frames):
                     "projected_time_s": motion["projected_time_s"],
                     "projected_miss_px": motion["projected_miss_px"],
                     "bbox_gap": bbox_gap,
-                    "bbox_iou": bbox_iou(item_a["bbox"], item_b["bbox"]),
+                    "bbox_iou": bbox_iou(motion_box(item_a), motion_box(item_b)),
                     "body_gap": body_gap,
                     "body_touch": body_touch,
                     "speed_a": response_a,
@@ -373,7 +395,7 @@ def pair_rows(frames):
                     "synchronized": sync,
                     "disruption": track_break,
                     "why": "; ".join(reasons) if reasons else "all stages present",
-                    "_boxes": (item_a["bbox"], item_b["bbox"]),
+                    "_boxes": (motion_box(item_a), motion_box(item_b)),
                 }
             )
     rows.sort(key=lambda row: (not row["approach"], math.hypot(*row["body_gap"]), row["time"]))
@@ -403,7 +425,7 @@ def causal_timeline(frames):
                 stats = closing_stats(frames, first_id, second_id, frame_index)
                 if stats is None:
                     continue
-                body_gap = edge_gaps(inset_box(current[first_id]["bbox"]), inset_box(current[second_id]["bbox"]))
+                body_gap = edge_gaps(inset_box(motion_box(current[first_id])), inset_box(motion_box(current[second_id])))
                 body_touch = body_gap[0] <= BODY_GAP and body_gap[1] <= BODY_GAP
                 state = phase.get(key, "normal")
                 if stats["approaching"] and state == "normal":
@@ -449,7 +471,7 @@ def causal_timeline(frames):
             item_a = current[nearest[2][0]]
             item_b = current[nearest[2][1]]
             status["proximity"] = "contact" if nearest[6] else f"body gap {math.hypot(*nearest[5]):.0f}px"
-            status["bbox_gap"] = edge_gaps(item_a["bbox"], item_b["bbox"])
+            status["bbox_gap"] = edge_gaps(motion_box(item_a), motion_box(item_b))
             status["body_gap"] = nearest[5]
             if nearest[3] in {"physical", "surfaced"}:
                 status["response"] = "yes" if nearest[3] == "surfaced" else "pending"
@@ -604,16 +626,25 @@ def read_frame(capture, frame_index):
 
 
 def draw_box(frame, item, color):
-    x1, y1, x2, y2 = [int(value) for value in item["bbox"]]
+    raw = item.get("raw_bbox") or item["bbox"]
+    rx1, ry1, rx2, ry2 = [int(value) for value in raw]
+    cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), color, 1)
+    box = motion_box(item)
+    x1, y1, x2, y2 = [int(value) for value in box]
     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+    confidence = item.get("confidence")
+    conf_text = f"{confidence:.2f}" if isinstance(confidence, (int, float)) else "--"
+    kind = "PROP" if item.get("observation") == "propagated" else "DET"
+    reliability = item.get("reliability")
+    reliability_text = "" if reliability is None else f" r{reliability:.2f}"
     cv2.putText(
         frame,
-        f"#{item['track_id']} {item['confidence']:.2f}",
+        f"#{item['track_id']} {conf_text} {kind}{reliability_text}",
         (x1, max(18, y1 - 6)),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
+        0.45,
         color,
-        2,
+        1,
         cv2.LINE_AA,
     )
 
