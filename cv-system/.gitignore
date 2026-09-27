@@ -1,0 +1,33 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local tooling
+.tools/
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+.dev.vars
+**/.dev.vars
+
+# Node
+node_modules/
+**/node_modules/
+
+# Generated CV outputs
+outputs/
+*.log
+
+# Model weights
+*.pt
+
+# macOS
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
