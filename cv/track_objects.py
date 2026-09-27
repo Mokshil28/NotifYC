@@ -7,6 +7,7 @@ box. tracks.json stores the raw detection box and its center.
 """
 
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 
@@ -28,9 +29,13 @@ MODEL_PATH = REPO_ROOT / "yolo11n.pt"
 TRACKER_PATH = Path(__file__).resolve().parent / "bytetrack.yaml"
 CLIP_NAMES = [f"cam_{index:03d}.mp4" for index in range(1, 11)]
 
-# One detector setup for every camera. Confidence stays below track_high_thresh
-# so a weaker box can still continue an existing ID.
+# Detections at or above this are normal measurements. A new track still needs
+# either one detection at NEW_TRACK_CONFIDENCE or several weaker ones.
 CONFIDENCE_THRESHOLD = 0.15
+LOW_CONFIDENCE = 0.08
+NEW_TRACK_CONFIDENCE = 0.30
+CONFIRM_FRAMES = 2
+INFERENCE_SIZE = 640
 NMS_IOU = 0.5
 HISTORY_LENGTH = 20
 # Display only. Raw boxes in tracks.json are not passed through this.
@@ -117,6 +122,160 @@ def suppress_duplicate_detections(boxes: Boxes, names: dict) -> tuple[Boxes, int
     return Boxes(boxes.data[keep], boxes.orig_shape), dropped
 
 
+def compatible_class(first: str, second: str) -> bool:
+    return first == second or (first in VEHICLE_NAMES and second in VEHICLE_NAMES)
+
+
+def shift_box(box, vx: float, vy: float):
+    return [box[0] + vx, box[1] + vy, box[2] + vx, box[3] + vy]
+
+
+class TrackMemory:
+    """Last confirmed box and step for each live track."""
+
+    def __init__(self, memory_frames: int = 12):
+        self.memory_frames = memory_frames
+        self.tracks: dict[int, dict] = {}
+
+    def remember(self, objects: list[dict], frame_index: int) -> None:
+        for item in objects:
+            previous = self.tracks.get(item["track_id"])
+            vx = vy = 0.0
+            if previous is not None and frame_index - previous["frame"] <= 2:
+                vx = item["center_x"] - previous["center"][0]
+                vy = item["center_y"] - previous["center"][1]
+            self.tracks[item["track_id"]] = {
+                "bbox": item["bbox"],
+                "center": (item["center_x"], item["center_y"]),
+                "class": item["class"],
+                "width": item["width"],
+                "height": item["height"],
+                "vx": vx,
+                "vy": vy,
+                "frame": frame_index,
+            }
+        stale = [track_id for track_id, state in self.tracks.items() if frame_index - state["frame"] > self.memory_frames]
+        for track_id in stale:
+            del self.tracks[track_id]
+
+    def matches(self, box, class_name: str) -> list[int]:
+        """Return one track when it is clearly closer than any other."""
+        cx = (box[0] + box[2]) / 2
+        cy = (box[1] + box[3]) / 2
+        width = max(1.0, box[2] - box[0])
+        height = max(1.0, box[3] - box[1])
+        ranked = []
+        for track_id, state in self.tracks.items():
+            if not compatible_class(class_name, state["class"]):
+                continue
+            predicted = shift_box(state["bbox"], state["vx"], state["vy"])
+            iou, cover = overlap_pair(box, predicted)
+            reach = max(1.0, float(np.hypot(state["width"], state["height"])))
+            distance = float(np.hypot(cx - (state["center"][0] + state["vx"]), cy - (state["center"][1] + state["vy"])))
+            ratio = (width * height) / max(1.0, state["width"] * state["height"])
+            if ratio < 0.45 or ratio > 2.2:
+                continue
+            if iou < 0.25 and distance > 0.45 * reach and cover < 0.5:
+                continue
+            ranked.append((iou, -distance, track_id))
+        ranked.sort(reverse=True)
+        if not ranked:
+            return []
+        if len(ranked) == 1:
+            return [ranked[0][2]]
+        best_iou, best_distance, best_id = ranked[0][0], -ranked[0][1], ranked[0][2]
+        second_iou, second_distance = ranked[1][0], -ranked[1][1]
+        if best_iou >= 0.25 and (second_iou <= best_iou * 0.5 or second_distance > best_distance + 25):
+            return [best_id]
+        return []
+
+
+def gate_low_detections(boxes: Boxes, names: dict, memory: TrackMemory) -> tuple[Boxes, int]:
+    """Keep a sub-0.15 box only when it agrees with exactly one live track."""
+    if len(boxes) == 0:
+        return boxes, 0
+    xyxy = boxes.xyxy.numpy()
+    classes = boxes.cls.numpy().astype(int)
+    keep = []
+    for index, box in enumerate(xyxy):
+        matched = memory.matches(box, names[int(classes[index])])
+        if len(matched) == 1:
+            keep.append(index)
+    if not keep:
+        return Boxes(boxes.data[:0], boxes.orig_shape), 0
+    return Boxes(boxes.data[keep], boxes.orig_shape), len(keep)
+
+
+class TentativeTracks:
+    """Birth a track from repeated 0.15–0.30 detections. One strong detection does not wait."""
+
+    def __init__(self, confirm_frames: int):
+        self.confirm_frames = confirm_frames
+        self._items: list[dict] = []
+
+    def _consistent(self, box, class_name: str, item: dict) -> bool:
+        if not compatible_class(class_name, item["class"]):
+            return False
+        iou, cover = overlap_pair(box, item["bbox"])
+        cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+        distance = np.hypot(cx - item["center"][0], cy - item["center"][1])
+        reach = np.hypot(item["width"], item["height"])
+        ratio = ((box[2] - box[0]) * (box[3] - box[1])) / max(1.0, item["width"] * item["height"])
+        if ratio < 0.45 or ratio > 2.2:
+            return False
+        return iou >= 0.3 or cover >= 0.5 or distance <= 0.5 * reach
+
+    def boost_indices(self, xyxy, classes, confidences, names: dict, frame_index: int) -> list[int]:
+        used = set()
+        kept = []
+        boost = []
+        for item in self._items:
+            best = None
+            for index, box in enumerate(xyxy):
+                confidence = float(confidences[index])
+                if index in used or not (CONFIDENCE_THRESHOLD <= confidence < NEW_TRACK_CONFIDENCE):
+                    continue
+                if not self._consistent(box, names[int(classes[index])], item):
+                    continue
+                distance = np.hypot((box[0] + box[2]) / 2 - item["center"][0], (box[1] + box[3]) / 2 - item["center"][1])
+                if best is None or distance < best[0]:
+                    best = (distance, index, box)
+            if best is not None and frame_index - item["frame"] <= 2:
+                _, index, box = best
+                used.add(index)
+                item["hits"] += 1
+                item["frame"] = frame_index
+                item["bbox"] = [float(value) for value in box]
+                item["center"] = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+                item["width"] = float(box[2] - box[0])
+                item["height"] = float(box[3] - box[1])
+                item["confidences"].append(float(confidences[index]))
+                if item["hits"] >= self.confirm_frames:
+                    boost.append(index)
+                else:
+                    kept.append(item)
+            elif frame_index - item["frame"] <= 2:
+                kept.append(item)
+        for index, box in enumerate(xyxy):
+            confidence = float(confidences[index])
+            if index in used or not (CONFIDENCE_THRESHOLD <= confidence < NEW_TRACK_CONFIDENCE):
+                continue
+            kept.append(
+                {
+                    "class": names[int(classes[index])],
+                    "bbox": [float(value) for value in box],
+                    "center": ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2),
+                    "width": float(box[2] - box[0]),
+                    "height": float(box[3] - box[1]),
+                    "hits": 1,
+                    "frame": frame_index,
+                    "confidences": [confidence],
+                }
+            )
+        self._items = kept
+        return boost
+
+
 def load_tracker() -> tuple[BYTETracker, dict]:
     if not TRACKER_PATH.is_file():
         raise SystemExit(f"Tracker config not found: {TRACKER_PATH}")
@@ -145,6 +304,52 @@ class DisplaySmoother:
         return current
 
 
+def refine_matched_box(track_id: int, box, class_name: str, confidence: float, memory: TrackMemory, candidates: list[dict]):
+    """Prefer a same-size detection near the predicted center when YOLO also emits a jumped box."""
+    state = memory.tracks.get(track_id)
+    if state is None or not candidates:
+        return box, confidence
+    previous_area = max(1.0, state["width"] * state["height"])
+    width = max(1.0, box[2] - box[0])
+    height = max(1.0, box[3] - box[1])
+    area_ratio = (width * height) / previous_area
+    predicted = (state["center"][0] + state["vx"], state["center"][1] + state["vy"])
+    center_x = (box[0] + box[2]) / 2
+    center_y = (box[1] + box[3]) / 2
+    step = max(18.0, float(np.hypot(state["vx"], state["vy"])) + 12.0)
+    jump = float(np.hypot(center_x - predicted[0], center_y - predicted[1]))
+    if 0.65 <= area_ratio <= 1.55 and jump <= step:
+        return box, confidence
+    if area_ratio > 1.7:
+        clamped_x = min(max(predicted[0], box[0]), box[2])
+        clamped_y = min(max(predicted[1], box[1]), box[3])
+        if float(np.hypot(clamped_x - predicted[0], clamped_y - predicted[1])) <= 24:
+            half_w = state["width"] / 2
+            half_h = state["height"] / 2
+            cx = min(max(clamped_x, box[0] + half_w), box[2] - half_w)
+            cy = min(max(clamped_y, box[1] + half_h), box[3] - half_h)
+            return [cx - half_w, cy - half_h, cx + half_w, cy + half_h], confidence
+    best = None
+    for candidate in candidates:
+        if not compatible_class(candidate["class"], state["class"]):
+            continue
+        cbox = candidate["bbox"]
+        cand_area = max(1.0, (cbox[2] - cbox[0]) * (cbox[3] - cbox[1]))
+        ratio = cand_area / previous_area
+        if ratio < 0.6 or ratio > 1.55:
+            continue
+        cand_center = ((cbox[0] + cbox[2]) / 2, (cbox[1] + cbox[3]) / 2)
+        distance = float(np.hypot(cand_center[0] - predicted[0], cand_center[1] - predicted[1]))
+        if distance > step:
+            continue
+        score = distance + abs(math.log(ratio)) * 30.0
+        if best is None or score < best[0]:
+            best = (score, cbox, candidate["confidence"])
+    if best is None:
+        return box, confidence
+    return best[1], best[2]
+
+
 def tracked_objects(
     names,
     boxes: Boxes,
@@ -155,6 +360,9 @@ def tracked_objects(
     store: TrajectoryStore,
     smoother: DisplaySmoother,
     canvas,
+    source_confidence=None,
+    memory: TrackMemory | None = None,
+    candidates: list[dict] | None = None,
 ) -> list[dict]:
     """Store the raw detection and draw one smoothed box. No trail is drawn."""
     if tracks is None or len(tracks) == 0 or len(boxes) == 0:
@@ -169,17 +377,20 @@ def tracked_objects(
         det_index = int(row[-1])
         if det_index < 0 or det_index >= len(xyxy):
             continue
+        track_id = int(row[4])
         name = names[int(classes[det_index])]
         if name not in ALLOWED_CLASSES:
             continue
 
-        x1, y1, x2, y2 = (int(value) for value in xyxy[det_index])
+        raw_box = [float(value) for value in xyxy[det_index]]
+        confidence = float(confidences[det_index] if source_confidence is None else source_confidence[det_index])
+        if memory is not None and candidates:
+            raw_box, confidence = refine_matched_box(track_id, raw_box, name, confidence, memory, candidates)
+        x1, y1, x2, y2 = (int(value) for value in raw_box)
         cx = (x1 + x2) / 2
         cy = (y1 + y2) / 2
         width = max(0, x2 - x1)
         height = max(0, y2 - y1)
-        track_id = int(row[4])
-        confidence = float(confidences[det_index])
         store.update(track_id, (cx, cy))
         history = [[point[0], point[1]] for point in store.points(track_id)]
         shown = smoother.box(track_id, frame_index, (x1, y1, x2, y2), (cx, cy), width, height)
@@ -209,7 +420,25 @@ def tracked_objects(
     return found
 
 
-def process_clip(model: YOLO, tracker: BYTETracker, class_ids: list[int], path: Path, writer_path: Path) -> dict:
+def concat_boxes(first: Boxes, second: Boxes) -> tuple[Boxes, np.ndarray]:
+    if len(first) == 0:
+        return second, second.conf.numpy().copy() if len(second) else np.empty(0)
+    if len(second) == 0:
+        return first, first.conf.numpy().copy()
+    data = torch.cat([first.data, second.data], dim=0)
+    confidence = torch.cat([first.conf, second.conf], dim=0).numpy().copy()
+    return Boxes(data, first.orig_shape), confidence
+
+
+def process_clip(
+    model: YOLO,
+    tracker: BYTETracker,
+    class_ids: list[int],
+    path: Path,
+    writer_path: Path | None,
+    confirm_frames: int = CONFIRM_FRAMES,
+    image_size: int = INFERENCE_SIZE,
+) -> dict:
     tracker.reset()
     probe = cv2.VideoCapture(str(path))
     if not probe.isOpened():
@@ -219,32 +448,81 @@ def process_clip(model: YOLO, tracker: BYTETracker, class_ids: list[int], path: 
     fps = probe.get(cv2.CAP_PROP_FPS) or 30.0
     probe.release()
 
-    writer = open_writer(writer_path, fps, (width, height))
+    writer = open_writer(writer_path, fps, (width, height)) if writer_path is not None else None
     store = TrajectoryStore(max_length=HISTORY_LENGTH)
     smoother = DisplaySmoother()
+    memory = TrackMemory()
+    tentative = TentativeTracks(confirm_frames)
     camera = camera_id(path.name)
     frames = []
     frame_index = 0
     suppressed = 0
+    low_continuations = 0
+    normal_detections = 0
+    untracked_detections = 0
 
     try:
         for result in model.predict(
             source=str(path),
             stream=True,
-            conf=CONFIDENCE_THRESHOLD,
+            conf=LOW_CONFIDENCE,
             iou=NMS_IOU,
+            imgsz=image_size,
             agnostic_nms=False,
             classes=class_ids,
             verbose=False,
         ):
             canvas = result.orig_img.copy()
-            kept, dropped = suppress_duplicate_detections(detection_boxes(result), result.names)
+            detected = detection_boxes(result)
+            if len(detected):
+                confidence = detected.conf
+                low = detected[(confidence >= LOW_CONFIDENCE) & (confidence < CONFIDENCE_THRESHOLD)]
+                normal = detected[confidence >= CONFIDENCE_THRESHOLD]
+            else:
+                low = detected
+                normal = detected
+            normal, dropped = suppress_duplicate_detections(normal, result.names)
             suppressed += dropped
-            tracks = tracker.update(kept, result.orig_img)
+            normal_detections += len(normal)
+            measured_confidence = normal.conf.numpy().copy() if len(normal) else np.empty(0)
+            if len(normal):
+                promote = tentative.boost_indices(
+                    normal.xyxy.numpy(),
+                    normal.cls.numpy().astype(int),
+                    measured_confidence,
+                    result.names,
+                    frame_index,
+                )
+                if promote:
+                    edited = normal.data.clone()
+                    edited[promote, 4] = NEW_TRACK_CONFIDENCE
+                    normal = Boxes(edited, normal.orig_shape)
+            low_kept, continued = gate_low_detections(low, result.names, memory)
+            low_continuations += continued
+            if len(normal) and len(low_kept):
+                combined = Boxes(torch.cat([normal.data, low_kept.data], dim=0), normal.orig_shape)
+                source_confidence = np.concatenate([measured_confidence, low_kept.conf.numpy()])
+            elif len(normal):
+                combined = normal
+                source_confidence = measured_confidence
+            else:
+                combined = low_kept
+                source_confidence = low_kept.conf.numpy().copy() if len(low_kept) else None
+            tracks = tracker.update(combined, result.orig_img)
             timestamp = round(frame_index / fps, 3)
+            candidate_boxes = []
+            if len(combined):
+                for box, class_id, conf in zip(combined.xyxy.numpy(), combined.cls.numpy().astype(int), combined.conf.numpy()):
+                    candidate_boxes.append(
+                        {
+                            "bbox": [float(value) for value in box],
+                            "class": result.names[int(class_id)],
+                            "confidence": float(conf),
+                        }
+                    )
             objects = tracked_objects(
                 result.names,
-                kept,
+                combined,
                 tracks,
                 frame_index,
                 timestamp,
@@ -252,15 +530,30 @@ def process_clip(model: YOLO, tracker: BYTETracker, class_ids: list[int], path: 
                 store,
                 smoother,
                 canvas,
+                source_confidence if len(combined) else None,
+                memory,
+                candidate_boxes,
             )
-            writer.write(canvas)
+            # Count normal detections that did not land on an output box.
+            if len(normal):
+                used = set()
+                if tracks is not None and len(tracks):
+                    used = {int(row[-1]) for row in tracks if int(row[-1]) < len(normal)}
+                for index, box in enumerate(normal.xyxy.numpy()):
+                    if index in used:
+                        continue
+                    untracked_detections += 1
+            memory.remember(objects, frame_index)
+            if writer is not None:
+                writer.write(canvas)
             if objects:
                 frames.append({"frame": frame_index, "timestamp": timestamp, "objects": objects})
             frame_index += 1
             if frame_index % 100 == 0:
                 print(f"  {frame_index} frames", flush=True)
     finally:
-        writer.release()
+        if writer is not None:
+            writer.release()
 
     if frame_index == 0:
         raise SystemExit(f"No frames were read from {path}")
@@ -271,6 +564,9 @@ def process_clip(model: YOLO, tracker: BYTETracker, class_ids: list[int], path: 
         "height": height,
         "frames_processed": frame_index,
         "duplicate_detections_suppressed": suppressed,
+        "low_continuations": low_continuations,
+        "normal_detections": normal_detections,
+        "untracked_detections": untracked_detections,
         "frames": frames,
     }
 
@@ -375,9 +671,13 @@ def print_diagnostics(title: str, summary: dict[str, dict]) -> None:
 
 def print_settings(updated: dict) -> None:
     print("\nYOLO")
-    print(f"  confidence {CONFIDENCE_THRESHOLD}")
+    print(f"  model yolo11n  imgsz {INFERENCE_SIZE}")
+    print(f"  normal confidence {CONFIDENCE_THRESHOLD}")
+    print(f"  continuation floor {LOW_CONFIDENCE}")
+    print(f"  immediate new track {NEW_TRACK_CONFIDENCE}")
+    print(f"  tentative confirmation {CONFIRM_FRAMES} frames")
     print(f"  nms iou {NMS_IOU} (same class)")
-    print(f"  agnostic nms off; duplicate boxes are removed before ByteTrack")
+    print("  agnostic nms off; duplicate boxes are removed before ByteTrack")
     print("ByteTrack")
     for key in (
         "track_high_thresh",

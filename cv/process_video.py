@@ -14,9 +14,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO_ROOT / "outputs" / "processed"
 
 # COCO names we care about for vehicle-pedestrian and vehicle-cyclist review.
-ALLOWED_CLASSES = ("person", "bicycle", "car", "motorcycle", "bus", "truck")
+ALLOWED_CLASSES = ("person", "bicycle", "car", "motorcycle", "bus", "truck", "train")
 
 # BGR colors, one per class, so trails stay readable on asphalt.
+# Train is blue. Red stays unused.
 CLASS_COLORS = {
     "person": (0, 200, 255),
     "bicycle": (255, 160, 0),
@@ -24,6 +25,7 @@ CLASS_COLORS = {
     "motorcycle": (220, 80, 220),
     "bus": (60, 140, 255),
     "truck": (40, 80, 220),
+    "train": (220, 140, 40),
 }
 
 

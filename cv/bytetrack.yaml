@@ -5,7 +5,8 @@ tracker_type: bytetrack
 # Scores between track_low_thresh and this value only continue an active ID.
 track_high_thresh: 0.2
 # Weak boxes may continue an active track. They cannot start an ID.
-track_low_thresh: 0.1
+# 0.08 lets a short dip under the 0.15 detector floor reach an existing track.
+track_low_thresh: 0.08
 # A new ID needs a clear unmatched detection. A weak extra box cannot open one.
 new_track_thresh: 0.3
 # About 0.4 seconds at 30 fps. Covers a short miss. A lost track is not drawn,
