@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+import { createReadStream, existsSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import generouted from '@generouted/react-router/plugin'
 import { cloudflare } from '@cloudflare/vite-plugin'
@@ -31,6 +33,7 @@ export default defineConfig({
         useFlatConfig: true,
       },
     }),
+    demoClipDevServer(),
   ],
   resolve: {
     alias: {
@@ -51,3 +54,49 @@ export default defineConfig({
     entries: ['./index.html', './src/pages/**/*.tsx'],
   },
 })
+
+/** Dev-server fallback for the local clip route. The worker process cwd is `/`,
+ *  so it cannot see ../data/cameras. Vite itself can. */
+function demoClipDevServer(): Plugin {
+  return {
+    name: 'notifyc-demo-clips',
+    apply: 'serve',
+    configureServer(server) {
+      const handle = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => {
+        const match = /^\/api\/local\/cameras\/(CAM-\d{3})\/video$/.exec(req.url?.split('?')[0] ?? '')
+        if (!match) return next()
+        const number = Number(match[1].slice(4))
+        if (number < 1 || number > 10) return next()
+        const file = join(server.config.root, '..', 'data', 'cameras', `cam_${match[1].slice(4)}.mp4`)
+        if (!existsSync(file)) return next()
+        const size = statSync(file).size
+        const range = req.headers.range
+        res.setHeader('Content-Type', 'video/mp4')
+        res.setHeader('Accept-Ranges', 'bytes')
+        res.setHeader('Cache-Control', 'no-store')
+        const send = (start: number, end: number, status: number) => {
+          res.statusCode = status
+          res.setHeader('Content-Length', String(end - start + 1))
+          if (status === 206) res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`)
+          createReadStream(file, { start, end }).pipe(res)
+        }
+        if (!range) return send(0, size - 1, 200)
+        const parsed = /bytes=(\d+)-(\d*)/.exec(range)
+        if (!parsed) {
+          res.statusCode = 416
+          res.end()
+          return
+        }
+        const start = Number(parsed[1])
+        const end = parsed[2] ? Number(parsed[2]) : size - 1
+        if (!Number.isFinite(start) || start < 0 || start >= size || end < start || end >= size) {
+          res.statusCode = 416
+          res.end()
+          return
+        }
+        send(start, end, 206)
+      }
+      server.middlewares.stack.unshift({ route: '', handle })
+    },
+  }
+}

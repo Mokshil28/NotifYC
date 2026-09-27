@@ -100,7 +100,7 @@ button { color: inherit; }
 
 .impact-section { min-height: 200px; padding: 42px 7vw; display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 8vw; background: #10262c; color: #edf4ef; }
 .impact-intro { max-width: 440px; }.impact-intro .eyebrow { color: #7fa5a7; }.impact-intro p { font: 400 18px/1.55 Georgia, serif; margin: 15px 0 0; color: #d4e0dc; }
-.impact-metrics { display: grid; grid-template-columns: repeat(3, 1fr); }
+.impact-metrics { display: grid; grid-template-columns: repeat(4, 1fr); }
 .impact-metrics > div { min-height: 98px; padding: 13px 25px; display: flex; flex-direction: column; justify-content: center; gap: 8px; border-left: 1px solid rgba(220,235,231,.17); }
 .impact-metrics strong { font: 500 25px var(--font-mono); letter-spacing: -1px; color: #ffffff; }.impact-metrics span { font: 400 8px var(--font-mono); text-transform: uppercase; letter-spacing: 1px; color: #86a2a3; }
 .workflow-section { padding: 105px 7vw 125px; background: #eef1ec; display: grid; grid-template-columns: .72fr 1.28fr; gap: 9vw; }
@@ -265,7 +265,14 @@ button { color: inherit; }
 .channel-topbar { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; }.channel-topbar h1 { margin: 8px 0 4px; font-size: 31px; letter-spacing: -1.5px; }.channel-topbar p { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--muted); font: 400 8px var(--font-mono); }
 .back-link { display: flex; align-items: center; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 500 8px var(--font-mono); text-transform: uppercase; cursor: pointer; }.back-link .icon { transform: rotate(180deg); }
 .live-badge { display: flex; align-items: center; gap: 7px; padding: 9px 11px; color: #3d7873; background: #def3ef; border-radius: 30px; font: 500 8px var(--font-mono); text-transform: uppercase; }
-.incident-banner { min-height: 72px; padding: 12px 17px; margin-bottom: 17px; display: grid; grid-template-columns: 14px 1fr auto auto; align-items: center; gap: 15px; background: #fff0ed; border: 1px solid #f0c7c0; }.incident-banner > div { display: flex; flex-direction: column; gap: 4px; }.incident-banner > div span { color: #b84738; font: 500 8px var(--font-mono); letter-spacing: .7px; }.incident-banner > div b { font-size: 11px; }.incident-banner time { color: var(--muted); font: 400 8px var(--font-mono); }.dispatch-pill { display: flex; align-items: center; gap: 6px; padding: 9px 11px; background: var(--ink); color: white; font: 500 8px var(--font-mono); text-transform: uppercase; }
+.incident-banner { min-height: 72px; padding: 12px 17px; margin-bottom: 17px; display: grid; grid-template-columns: 14px 1fr auto auto; align-items: center; gap: 15px; background: #fff0ed; border: 1px solid #f0c7c0; }
+.incident-banner.quiet { background: #f4f7f3; border-color: var(--line); }
+.incident-banner.quiet > div span { color: var(--muted); }
+.incident-banner.quiet .alert-pulse { background: var(--cyan); box-shadow: none; animation: none; }
+.live-view-panel video.demo-clip { display: block; width: 100%; height: min(62vh, 640px); background: #07171b; object-fit: contain; }
+.live-write-error { margin: 0; padding: 8px 4.5vw; background: #fff0ed; color: #9a3b2f; font-size: 12px; }
+.briefing-slot p { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.incident-banner > div { display: flex; flex-direction: column; gap: 4px; }.incident-banner > div span { color: #b84738; font: 500 8px var(--font-mono); letter-spacing: .7px; }.incident-banner > div b { font-size: 11px; }.incident-banner time { color: var(--muted); font: 400 8px var(--font-mono); }.dispatch-pill { display: flex; align-items: center; gap: 6px; padding: 9px 11px; background: var(--ink); color: white; font: 500 8px var(--font-mono); text-transform: uppercase; }
 .channel-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(330px, .75fr); gap: 17px; }.live-view-panel, .incident-data { border: 1px solid var(--line); background: white; }.live-view-panel .scene { height: 525px; }
 .live-controls { height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--ink-deep); color: #d9e5e2; font: 500 8px var(--font-mono); }.live-controls > span:nth-child(2) { color: #ff8373; }.live-controls > span:last-child { color: var(--lime); }
 .camera-footer { height: 48px; padding: 0 17px; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font: 400 8px var(--font-mono); }.camera-footer span { display: flex; align-items: center; gap: 6px; }
