@@ -31,3 +31,9 @@ outputs/
 # Temporary files
 tmp/
 temp/
+
+# Local demo data / camera videos
+data/
+
+# Old prototype - not part of final NotifYC
+nearmiss-app/

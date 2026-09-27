@@ -1,0 +1,10 @@
+{
+  "description": "Enables transit analysts to upload long NYC videos and automatically extract close-call accident clips with timestamps and key data for efficient review.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
