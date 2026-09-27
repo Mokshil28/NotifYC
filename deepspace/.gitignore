@@ -4,6 +4,7 @@ dist
 .wrangler.deepspace.*.toml
 .dev.vars
 .dev.vars.*
+.photon-conversation.json
 .deepspace
 .worker-bundle.js
 *.tgz

@@ -1,6 +1,7 @@
 /**
- * Standalone Photon Spectrum client.
- * Sends only to PHOTON_TEST_PHONE. Does not read incidents or choose recipients.
+ * Cold outbound helper. Notification delivery does not use this.
+ * space.create is rejected for this project with "Target not allowed".
+ * Live delivery uses conversation-service.ts and the inbound space.
  */
 
 import { Spectrum } from 'spectrum-ts'
