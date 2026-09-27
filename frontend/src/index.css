@@ -271,7 +271,7 @@ button { color: inherit; }
 .incident-banner.quiet .alert-pulse { background: var(--cyan); box-shadow: none; animation: none; }
 .live-view-panel video.demo-clip { display: block; width: 100%; height: min(62vh, 640px); background: #07171b; object-fit: contain; }
 .live-write-error { margin: 0; padding: 8px 4.5vw; background: #fff0ed; color: #9a3b2f; font-size: 12px; }
-.briefing-slot p { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.dispatch-card p { margin: 10px 0 12px; color: #d5e3df; font-size: 12px; line-height: 1.45; }
 .incident-banner > div { display: flex; flex-direction: column; gap: 4px; }.incident-banner > div span { color: #b84738; font: 500 8px var(--font-mono); letter-spacing: .7px; }.incident-banner > div b { font-size: 11px; }.incident-banner time { color: var(--muted); font: 400 8px var(--font-mono); }.dispatch-pill { display: flex; align-items: center; gap: 6px; padding: 9px 11px; background: var(--ink); color: white; font: 500 8px var(--font-mono); text-transform: uppercase; }
 .channel-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(330px, .75fr); gap: 17px; }.live-view-panel, .incident-data { border: 1px solid var(--line); background: white; }.live-view-panel .scene { height: 525px; }
 .live-controls { height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--ink-deep); color: #d9e5e2; font: 500 8px var(--font-mono); }.live-controls > span:nth-child(2) { color: #ff8373; }.live-controls > span:last-child { color: var(--lime); }

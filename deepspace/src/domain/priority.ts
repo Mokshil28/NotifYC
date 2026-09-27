@@ -46,6 +46,13 @@ export function operationalPriority(
 
   if (score !== null && score >= 60) strong.push(`evidence score ${score} out of 100`)
   else if (score !== null && score >= 40) mild.push(`evidence score ${score} out of 100`)
+  if (flagMetric(metrics, 'vehicle_rollover')) {
+    strong.push('a tracked vehicle flipped over')
+    strong.push('rollover is the first location sent to the simulated police notification')
+  }
+  if (flagMetric(metrics, 'wall_impact')) {
+    mild.push('a tracked vehicle collided with a wall')
+  }
   if (flagMetric(metrics, 'synchronized_response')) {
     strong.push('both tracked vehicles showed a motion response in the same window')
   }

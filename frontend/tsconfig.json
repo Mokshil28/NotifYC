@@ -9,9 +9,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@notifyc/*": ["../NotifYC/deepspace/src/*"],
-      "deepspace/schema": ["../NotifYC/deepspace/node_modules/deepspace/dist/schema.d.ts"],
-      "deepspace": ["../NotifYC/deepspace/node_modules/deepspace/dist/index.d.ts"]
+      "@notifyc/*": ["../deepspace/src/*"],
+      "deepspace/schema": ["../deepspace/node_modules/deepspace/dist/schema.d.ts"],
+      "deepspace": ["../deepspace/node_modules/deepspace/dist/index.d.ts"]
     },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,

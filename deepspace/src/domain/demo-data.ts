@@ -108,11 +108,11 @@ export const demoCameras: Camera[] = [
 ]
 
 export const demoResponders: Responder[] = [
-  { responderId: 'UNIT-12', name: 'Unit 12', type: 'mobile', status: 'available', latitude: 40.758, longitude: -73.9855, simulation: true, updatedAt: DEMO_SEEDED_AT },
+  { responderId: 'UNIT-12', name: 'Officer 12', type: 'mobile', status: 'available', latitude: 40.758, longitude: -73.9855, simulation: true, updatedAt: DEMO_SEEDED_AT },
   { responderId: 'UNIT-18', name: 'Unit 18', type: 'support', status: 'unavailable', latitude: 40.7496, longitude: -73.9877, simulation: true, updatedAt: DEMO_SEEDED_AT },
-  { responderId: 'UNIT-27', name: 'Unit 27', type: 'mobile', status: 'available', latitude: 40.7359, longitude: -73.9911, simulation: true, updatedAt: DEMO_SEEDED_AT },
+  { responderId: 'UNIT-27', name: 'Unit 27', type: 'mobile', status: 'unavailable', latitude: 40.7359, longitude: -73.9911, simulation: true, updatedAt: DEMO_SEEDED_AT },
   { responderId: 'UNIT-31', name: 'Unit 31', type: 'support', status: 'unavailable', latitude: 40.7527, longitude: -73.9772, simulation: true, updatedAt: DEMO_SEEDED_AT },
-  { responderId: 'UNIT-42', name: 'Unit 42', type: 'mobile', status: 'available', latitude: 40.7061, longitude: -73.9969, simulation: true, updatedAt: DEMO_SEEDED_AT },
+  { responderId: 'UNIT-42', name: 'Unit 42', type: 'mobile', status: 'unavailable', latitude: 40.7061, longitude: -73.9969, simulation: true, updatedAt: DEMO_SEEDED_AT },
 ]
 
 /** No collision incidents are seeded in this phase. */

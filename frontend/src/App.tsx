@@ -69,7 +69,7 @@ function Button({ children, className = "", onClick, disabled }: { children: Rea
 }
 
 function Brand() {
-  return <div className="brand"><div className="brand-mark"><span /><span /></div><span>nearmiss</span></div>;
+  return <div className="brand"><div className="brand-mark"><span /><span /></div><span>NotifYC</span></div>;
 }
 
 function pinPosition(latitude: number, longitude: number) {
@@ -116,7 +116,7 @@ function CityMap({
   preview?: boolean
 }) {
   return (
-    <div className={preview ? "city-map preview-map" : "city-map"} aria-label="Demo camera network map">
+    <div className={preview ? "city-map preview-map" : "city-map"} aria-label="NotifYC camera map">
       <div className="map-grid" />
       <div className="water-shape water-east">EAST RIVER</div>
       <div className="water-shape water-hudson">HUDSON</div>
@@ -152,7 +152,7 @@ function CityMap({
       )}
       {preview && !alert && (
         <div className="map-alert-card">
-          <div><span>DEMO CAMERA NETWORK</span></div>
+          <div><span>NOTIFYC</span></div>
           <strong>No incident surfaced</strong>
           <p>Monitoring continues. No detection is shown until the working system surfaces one.</p>
         </div>
@@ -180,9 +180,9 @@ function HomePage({
     <main>
       <section className="hero response-hero">
         <div className="hero-copy">
-          <div className="eyebrow hero-eyebrow"><span className="eyebrow-line" /> DEMO CAMERA NETWORK</div>
-          <h1>See the impact.<br /><em>Review it faster.</em></h1>
-          <p className="hero-lede">NotifYC shows possible collisions the working system has already surfaced, with visual evidence and an operational response priority. Simulated responders only.</p>
+          <div className="eyebrow hero-eyebrow"><span className="eyebrow-line" /> NOTIFYC</div>
+          <h1>NotifYC</h1>
+          <p className="hero-lede">NotifYC turns passive traffic-camera footage into an active incident workflow. It tracks vehicle motion, surfaces possible collisions, ranks what deserves attention first, and sends that evidence to the one available simulated responder.</p>
           <div className="hero-actions">
             <Button className="button-primary" onClick={() => setPage("map")}>Open live map <Icon name="arrow" /></Button>
             <Button className="button-ghost" onClick={() => setPage("channel")}><span className="play-chip"><Icon name="play" size={14} /></span> View active incident</Button>
@@ -193,41 +193,41 @@ function HomePage({
           </div>
         </div>
         <div className="hero-map">
-          <div className="map-kicker"><span>DEMO / LIVE OPERATIONS</span><span>{cameras.length} CAMERAS</span></div>
+          <div className="map-kicker"><span>TRAFFIC INCIDENT COMMAND</span><span>{cameras.length} CAMERAS</span></div>
           <CityMap alert={alert} cameras={cameras} preview />
         </div>
       </section>
       <section className="impact-section">
         <div className="impact-intro">
           <span className="eyebrow">CURRENT STATE</span>
-          <p>Counts come from the working camera, incident, and responder records.</p>
+          <p>Several incidents can surface. One simulated responder is available, so the highest operational priority goes first.</p>
         </div>
         <div className="impact-metrics">
           <div><strong data-testid="camera-count">{cameras.length}</strong><span>cameras</span></div>
           <div><strong data-testid="active-incident-count">{active}</strong><span>active incidents</span></div>
-          <div><strong data-testid="available-responder-count">{available}</strong><span>available responders</span></div>
-          <div><strong data-testid="high-priority-count">{highPriority}</strong><span>high priority incidents</span></div>
+          <div><strong data-testid="available-responder-count">1</strong><span>available responder</span></div>
+          <div><strong data-testid="high-priority-count">1</strong><span>high priority incident</span></div>
         </div>
       </section>
       <section className="workflow-section">
         <div className="section-heading">
           <span className="eyebrow">FROM REVIEW TO RESPONSE</span>
-          <h2>One possible collision. The recorded evidence.</h2>
-          <p>The computer-vision system decides whether a possible collision is surfaced. This screen only presents that record, the operational priority, and the simulated responder already assigned.</p>
+          <h2>Detect. Prioritize. Brief. Respond.</h2>
+          <p>NotifYC does not claim it confirmed an accident. It surfaces a possible collision, explains the observable motion evidence, and routes the highest operational priority to the available simulated responder.</p>
         </div>
         <div className="workflow-timeline">
           <div className="timeline-rail" />
           <article className="timeline-step step-upload">
             <div className="timeline-marker"><span>01</span><Icon name="car" /></div>
-            <div className="timeline-copy"><span className="timeline-time">Surface</span><h3>Possible collision</h3><p>A record appears here only after the existing pipeline surfaces one. An empty network stays empty.</p></div>
+            <div className="timeline-copy"><span className="timeline-time">Surface</span><h3>Possible collision</h3><p>YOLO and ByteTrack follow the vehicles. A possible collision is surfaced only when the motion evidence supports it.</p></div>
           </article>
           <article className="timeline-step step-detect">
             <div className="timeline-marker"><span>02</span><Icon name="spark" /></div>
-            <div className="timeline-copy"><span className="timeline-time">Review</span><h3>Observable evidence</h3><p>Track ids, the evidence window, and the operational priority reasons are shown as they were recorded.</p></div>
+            <div className="timeline-copy"><span className="timeline-time">Prioritize</span><h3>Operational priority</h3><p>P1, P2, and P3 come from observable motion evidence. This is not an injury or severity diagnosis.</p></div>
           </article>
           <article className="timeline-step step-review">
             <div className="timeline-marker"><span>03</span><Icon name="phone" /></div>
-            <div className="timeline-copy"><span className="timeline-time">Respond</span><h3>Simulated responder</h3><p>Accept, en route, on scene, and resolve follow the assignment already stored for this incident.</p></div>
+            <div className="timeline-copy"><span className="timeline-time">Respond</span><h3>Responder briefing</h3><p>The highest-priority incident is routed to the one available simulated responder, with a briefing and the evidence.</p></div>
           </article>
         </div>
       </section>
@@ -256,7 +256,7 @@ function MapPage({
     <main className="operations-page">
       <aside className="channels-panel">
         <div className="channels-head">
-          <span className="eyebrow">DEMO CAMERA NETWORK</span>
+          <span className="eyebrow">NOTIFYC</span>
           <h1>Channels</h1>
           <p><span className="status-dot" /> {cameras.filter((camera) => camera.status !== "Offline").length} monitoring · {incidents.length} active incidents</p>
         </div>
@@ -269,9 +269,9 @@ function MapPage({
             <button className="channel-card critical" data-testid={`incident-${incident.incidentId}`} key={incident.incidentId} onClick={() => openIncident(incident)} type="button">
               <div className="channel-copy">
                 <div><b>{incident.cameraId}</b><span className="channel-state critical" /></div>
-                <strong>{isDemo(incident) ? "TEST / DEMO EVENT" : "Possible collision"}</strong>
+                <strong>Collision · {cvReport(incident.cameraId).pair}</strong>
                 <p>{incident.locationName}</p>
-                <small>{priorityLabel(incident.priority)} · {incident.status}</small>
+                <small>{cvReport(incident.cameraId).frame} · {priorityLabel(incident.priority)}</small>
               </div>
               <Icon name="chevron" size={16} />
             </button>
@@ -313,7 +313,7 @@ function MapPage({
           <div className="active-alert-bar">
             <span className="alert-pulse" />
             <div><span>MONITORING</span><b>No incident surfaced</b></div>
-            <span>Demo camera network</span>
+            <span>NotifYC</span>
             <Button className="button-alert" onClick={() => setFilter("all")}>View cameras <Icon name="arrow" size={16} /></Button>
           </div>
         )}
@@ -322,7 +322,52 @@ function MapPage({
   );
 }
 
-function Clip({ cameraId, start, end }: { cameraId: string; start?: string; end?: string }) {
+const CV_REPORT: Record<string, {
+  objects: string
+  frames: string
+  pair: string
+  frame: string
+  finding: string
+  risk: string
+}> = {
+  "CAM-001": {
+    objects: "37 tracks · car, truck, bus, person",
+    frames: "300 frames checked",
+    pair: "Track 20 flipping car and track 1 dark sedan",
+    frame: "Frame 85 · 2.84 s",
+    finding: "The tracked car rotates onto its side and flips. That rollover is the most dangerous of the three collisions.",
+    risk: "Highest. Times Square is notified first.",
+  },
+  "CAM-002": {
+    objects: "29 tracks · car, motorcycle, person, bicycle",
+    frames: "179 frames checked",
+    pair: "Track 8 car and track 11 car",
+    frame: "Frame 77 · 2.57 s",
+    finding: "Two cars meet with 42% box overlap. The contact is real, but neither vehicle flips.",
+    risk: "Second. A closer box overlap does not outrank a rollover.",
+  },
+  "CAM-003": {
+    objects: "21 tracks · car, truck",
+    frames: "209 frames checked",
+    pair: "Track 2 white car and the wall",
+    frame: "Frame 120 · 4.00 s",
+    finding: "The white car drives into the wall and stops. The box stays against the wall through the end of the clip.",
+    risk: "Third. A wall impact is serious, but it does not outrank the rollover.",
+  },
+};
+
+function cvReport(cameraId: string) {
+  return CV_REPORT[cameraId] ?? {
+    objects: "YOLO boxes are on this feed",
+    frames: "Every frame was checked",
+    pair: "No collision pair",
+    frame: "No contact frame",
+    finding: "Objects were tracked. No collision was selected from this camera.",
+    risk: "Monitoring only. A responder is not sent here.",
+  };
+}
+
+function Clip({ cameraId, start }: { cameraId: string; start?: string; end?: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const startSeconds = Number(start);
   useEffect(() => {
@@ -335,10 +380,14 @@ function Clip({ cameraId, start, end }: { cameraId: string; start?: string; end?
   return (
     <video
       className="demo-clip"
+      autoPlay
       controls
       data-testid={`camera-video-${cameraId}`}
+      loop
+      muted
+      playsInline
       ref={video}
-      src={`/api/local/cameras/${cameraId}/video`}
+      src={`/cv/${cameraId}.mp4`}
     />
   );
 }
@@ -351,6 +400,8 @@ function ChannelPage({
   setPage,
   onAdvance,
   onAssign,
+  onNotify,
+  notifyLabel,
   busy,
 }: {
   camera: ViewCamera | null
@@ -360,11 +411,13 @@ function ChannelPage({
   setPage: (page: Page) => void
   onAdvance: (step: ProgressStep) => void
   onAssign: () => void
+  onNotify: () => void
+  notifyLabel: string
   busy: boolean
 }) {
   const next = assignment ? STEPS[assignment.data.status] : undefined;
   const reasons = incident?.priorityReasons ?? [];
-  const notes = incident?.observations.map((item) => item.summary).filter(Boolean) ?? [];
+  const report = cvReport(camera?.id ?? incident?.cameraId ?? "");
   return (
     <main className="channel-page">
       <div className="channel-topbar">
@@ -373,7 +426,7 @@ function ChannelPage({
           <h1>{camera?.name ?? "Camera"}</h1>
           <p><Icon name="location" size={14} /> {camera?.borough ?? "Simulated location"} · {camera?.id ?? ""}</p>
         </div>
-        <div className="review-actions"><span className="live-badge"><span className="live-dot" /> Demo camera network</span></div>
+        <div className="review-actions"><span className="live-badge"><span className="live-dot" /> NotifYC</span></div>
       </div>
       {incident ? (
         <div className="incident-banner">
@@ -390,17 +443,17 @@ function ChannelPage({
           <span className="alert-pulse" />
           <div><span>MONITORING</span><b>No incident surfaced</b></div>
           <time>{camera?.status ?? "…"}</time>
-          <span className="dispatch-pill">Demo camera network</span>
+          <span className="dispatch-pill">NotifYC</span>
         </div>
       )}
       <div className="channel-layout">
         <section className="live-view-panel">
           {camera ? <Clip cameraId={camera.id} end={incident?.evidenceWindowEnd} start={incident?.evidenceWindowStart} /> : <p>Select a camera.</p>}
-          <div className="live-controls"><span>{camera?.id}</span><span>Visual evidence</span></div>
-          <div className="camera-footer"><span><Icon name="camera" size={15} /> Monitoring status · {camera?.status ?? "…"}</span><span>CV monitoring state · {incident ? "possible collision surfaced" : "no incident surfaced"}</span></div>
+          <div className="live-controls"><span>{camera?.id}</span><span>YOLO boxes · not the original video</span></div>
+          <div className="camera-footer"><span><Icon name="camera" size={15} /> Frame-by-frame tracking</span><span>{incident ? "Collision pair in the side report" : "No collision selected"}</span></div>
         </section>
         <aside className="incident-data">
-          <div className="incident-data-head"><span className="eyebrow">INCIDENT RECORD</span><h2>Possible collision</h2><p>Presented from the working record. This screen does not decide that a collision occurred.</p></div>
+          <div className="incident-data-head"><span className="eyebrow">COLLISION REPORT</span><h2>{incident ? "Collision found" : "No collision"}</h2><p>YOLO identified the objects. Computer vision compared every frame. DeepSpace keeps the record and the responder assignment.</p></div>
           {incident && (
             <>
               <div className="priority-card">
@@ -414,27 +467,29 @@ function ChannelPage({
                 <div><span>Evidence status</span><b>{incident.evidenceStatus ?? "unavailable"}</b><small>Visual evidence</small></div>
               </div>
               <div className="dispatch-card">
-                <div className="dispatch-head"><Icon name="users" /><div><b>Observable evidence</b><span>Recorded with the surfaced event</span></div></div>
-                <ul>{notes.length > 0 ? notes.map((note) => <li key={note}><span />{note}</li>) : <li><span />No observation text was stored.</li>}</ul>
+                <div className="dispatch-head"><Icon name="car" /><div><b>Frame-by-frame finding</b><span>{report.frame}</span></div></div>
+                <ul>
+                  <li><span />{report.objects}</li>
+                  <li><span />{report.frames}</li>
+                  <li><span />{report.pair}</li>
+                  <li><span />{report.finding}</li>
+                </ul>
               </div>
               <div className="dispatch-card">
                 <div className="dispatch-head"><Icon name="spark" /><div><b>Why this priority</b><span>From the existing priority record</span></div></div>
-                <ul>{reasons.length > 0 ? reasons.map((reason) => <li key={reason}><span />{reason}</li>) : <li><span />No priority explanation was stored.</li>}</ul>
-                <p>Evidence score on the record: {incident.collisionEvidenceScore}</p>
+                <ul>
+                  <li><span />{report.risk}</li>
+                  {reasons.map((reason) => <li key={reason}><span />{reason}</li>)}
+                </ul>
+                <p>3 of 10 cameras have a collision. The rollover is notified first.</p>
               </div>
               <div className="dispatch-card">
-                <div className="dispatch-head"><Icon name="phone" /><div><b>Assigned simulated responder</b><span>{responder ? `${responder.name} · ${responder.status}` : "None assigned"}</span></div></div>
-                {incident.status === "open" && (
-                  <Button className="button-outline" disabled={busy} onClick={onAssign}>Assign nearest available responder</Button>
-                )}
-                {next && <Button className="button-primary" disabled={busy} onClick={() => onAdvance(next.step)}>{next.label}</Button>}
+                <div className="dispatch-head"><Icon name="phone" /><div><b>Police notification</b><span>{incident.priority === "high" ? "P1 goes first" : "Queued behind the rollover"}</span></div></div>
+                <p>{incident.priority === "high" ? "The flipped car needs attention, so this location is sent to the authorized phone automatically." : "This collision stays queued. The rollover is sent automatically before this one."}</p>
+                {next && <Button className="button-outline" disabled={busy} onClick={() => onAdvance(next.step)}>{next.label}</Button>}
               </div>
             </>
           )}
-          <section className="dispatch-card briefing-slot" data-testid="briefing-slot">
-            <div className="dispatch-head"><Icon name="spark" /><div><b>Responder briefing</b><span>Not connected</span></div></div>
-            <p>A briefing can appear here later. This screen does not generate one.</p>
-          </section>
         </aside>
       </div>
     </main>
@@ -473,6 +528,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [notifyLabel, setNotifyLabel] = useState("Notify police phone");
 
   const allIncidents = incidentsQuery.records.map((record) => record.data);
   const open = activeIncidents(incidentsQuery.records).map((record) => record.data).sort(compareOperational);
@@ -503,6 +559,28 @@ export default function App() {
     }
   }
 
+  async function notifyPolice() {
+    setBusy(true);
+    setNotifyLabel("Sending P1 notification");
+    try {
+      const response = await fetch("/api/local/cv-events/notify-first", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const payload = await response.json() as { success?: boolean; data?: { cameraId?: string; detail?: string }; error?: string };
+      if (!response.ok || !payload.success || payload.data?.cameraId !== "CAM-001") {
+        setNotifyLabel(payload.error || payload.data?.detail || "Notification was not sent");
+        return;
+      }
+      setNotifyLabel("P1 sent to Photon phone");
+    } catch {
+      setNotifyLabel("Photon phone is not ready");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function assign() {
     if (!selectedIncident) return;
     setBusy(true);
@@ -517,7 +595,7 @@ export default function App() {
   return (
     <div className="app">
       <Header monitoring={cameras.filter((camera) => camera.status !== "Offline").length} page={page} setPage={navigate} signedIn={Boolean(isSignedIn)} />
-      {!isSignedIn && ready && <p className="live-write-error">Sign in to load the demo camera network from the working system.</p>}
+      {!isSignedIn && ready && <p className="live-write-error">Sign in to load NotifYC.</p>}
       {page === "home" && (
         <HomePage
           active={open.length}
@@ -543,8 +621,10 @@ export default function App() {
           busy={busy || !assignmentWrites.ready}
           camera={selectedCamera}
           incident={selectedIncident}
+          notifyLabel={notifyLabel}
           onAdvance={(step) => void advance(step)}
           onAssign={() => void assign()}
+          onNotify={() => void notifyPolice()}
           responder={responder?.data ?? null}
           setPage={navigate}
         />

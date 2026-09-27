@@ -27,7 +27,7 @@ export function DemoClip({ cameraId, startSeconds, endSeconds }: DemoClipProps) 
         className="w-full rounded-lg bg-black"
         controls
         data-testid={`camera-video-${cameraId}`}
-        src={`/api/local/cameras/${cameraId}/video`}
+        src={`/cv-wall/${cameraId}.mp4`}
       />
       {startSeconds !== undefined && endSeconds !== undefined && (
         <p className="mt-2 text-xs text-muted-foreground" data-testid="evidence-window">
