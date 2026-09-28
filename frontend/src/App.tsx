@@ -298,10 +298,17 @@ function MapPage({
       </aside>
       <section className="map-workspace">
         <div className="map-toolbar">
-          <div><span className="eyebrow">DEMO VISUALIZATION</span><h2>Seeded camera locations</h2></div>
-          <div className="map-toolbar-actions"><span>Not a production map</span><button onClick={() => setPage("home")} type="button">Overview</button></div>
+          <div><span className="eyebrow">LIVE CAMERA WALL</span><h2>All 10 cameras</h2></div>
+          <div className="map-toolbar-actions"><span>Click a camera to open it</span><button onClick={() => setPage("home")} type="button">Overview</button></div>
         </div>
-        <CityMap activeId={hovered} alert={lead} cameras={cameras} onHover={setHovered} onSelect={openCamera} />
+        <div className="camera-wall" aria-label="All ten camera feeds">
+          {cameras.map((camera) => (
+            <button className={`camera-tile ${camera.risk}`} key={camera.id} onClick={() => openCamera(camera)} type="button">
+              <video autoPlay loop muted playsInline src={`/cv/${camera.id}.mp4`} />
+              <span><b>{camera.id}</b>{camera.name}</span>
+            </button>
+          ))}
+        </div>
         {lead ? (
           <div className="active-alert-bar">
             <span className="alert-pulse" />

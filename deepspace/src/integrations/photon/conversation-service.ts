@@ -157,6 +157,16 @@ async function main(): Promise<void> {
       if (!announced) {
         announced = true
         console.log('[Photon] Authorized Photon conversation: READY')
+        void fetch('http://127.0.0.1:8788/notify-first', { method: 'POST' })
+          .then(async (response) => {
+            const payload = await response.json() as { success?: boolean; error?: string }
+            console.log(payload.success
+              ? '[Photon] P1 notification sent automatically.'
+              : `[Photon] P1 notification is waiting. ${mask(payload.error ?? 'Notify bridge is not ready.', projectSecret)}`)
+          })
+          .catch((error: unknown) => {
+            console.error(`[Photon] P1 notification is waiting. ${mask(error instanceof Error ? error.message : 'Notify bridge is not running.', projectSecret)}`)
+          })
       }
     }
   } catch (error) {

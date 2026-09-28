@@ -258,6 +258,13 @@ button { color: inherit; }
 .channel-state { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); }.channel-state.critical { background: var(--danger); }.channel-state.offline { background: #a2acaa; }
 .map-workspace { min-width: 0; position: relative; padding: 18px; background: #e8edeb; }.map-toolbar { height: 70px; padding: 0 4px; display: flex; justify-content: space-between; align-items: center; }.map-toolbar h2 { font-size: 23px; margin: 5px 0 0; }.map-toolbar-actions { display: flex; align-items: center; gap: 18px; }.map-toolbar-actions span, .map-toolbar-actions button { display: flex; align-items: center; gap: 6px; color: var(--muted); font: 400 8px var(--font-mono); }.map-toolbar-actions button { min-height: 34px; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); background: white; cursor: pointer; }
 .map-workspace .city-map { height: calc(100vh - 200px); min-height: 535px; }
+.camera-wall { height: calc(100vh - 188px); min-height: 520px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.camera-tile { position: relative; min-width: 0; padding: 0; border: 1px solid #24383c; background: #07171b; cursor: pointer; overflow: hidden; }
+.camera-tile video { display: block; width: 100%; height: 100%; object-fit: cover; background: #07171b; }
+.camera-tile span { position: absolute; left: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 2px; padding: 5px 7px; color: white; background: rgba(7,23,27,.78); font: 500 8px var(--font-mono); text-align: left; }
+.camera-tile b { color: var(--lime); }
+.camera-tile.critical { outline: 2px solid var(--danger); }
+.camera-tile:hover { outline: 2px solid var(--lime); }
 .active-alert-bar { position: absolute; z-index: 12; left: 42px; right: 42px; bottom: 38px; min-height: 68px; padding: 11px 13px 11px 18px; display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 13px; background: rgba(8,23,27,.94); border: 1px solid rgba(255,95,74,.45); color: white; box-shadow: 0 15px 35px rgba(0,0,0,.25); backdrop-filter: blur(12px); }
 .active-alert-bar > div { display: flex; flex-direction: column; gap: 4px; }.active-alert-bar > div span { color: #ff8d7e; font: 500 7px var(--font-mono); letter-spacing: .8px; }.active-alert-bar b { font-size: 11px; }.active-alert-bar > span:nth-child(3) { color: #849a9c; font: 400 8px var(--font-mono); }.button-alert { min-height: 39px; padding: 0 13px; border-radius: 3px; background: var(--danger); color: white; font-size: 9px; }
 
@@ -288,6 +295,8 @@ button { color: inherit; }
 }
 
 @media (max-width: 760px) {
+  .camera-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; height: auto; }
+  .camera-tile { height: 150px; }
   .operations-page { height: auto; min-height: calc(100vh - 65px); grid-template-columns: 1fr; }.channels-panel { border: 0; }.channel-list { max-height: 430px; }.map-workspace { padding: 12px; }.map-workspace .city-map { min-height: 530px; height: 65vh; }.map-toolbar-actions { display: none; }.active-alert-bar { left: 24px; right: 24px; bottom: 25px; grid-template-columns: 12px 1fr; }.active-alert-bar > span:nth-child(3) { display: none; }.active-alert-bar .button { grid-column: 2; justify-self: start; }.city-map .pin-label { display: none; }
   .channel-page { padding: 25px 4vw 60px; }.channel-topbar { align-items: flex-start; }.channel-topbar .review-actions .button { display: none; }.incident-banner { grid-template-columns: 12px 1fr; }.incident-banner time { display: none; }.dispatch-pill { grid-column: 2; justify-self: start; }.channel-layout { grid-template-columns: 1fr; }.live-view-panel .scene { height: 330px; }.incident-data { display: block; }.priority-card, .data-grid, .dispatch-card { margin-top: 17px; }.camera-footer span:last-child { display: none; }
   .preview-map { height: 500px; min-height: 500px; }
