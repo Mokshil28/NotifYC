@@ -10,52 +10,6 @@ import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-type RankedIncident = {
-  incidentId: string
-  cameraId: string
-  locationName: string
-  priority: 'high' | 'normal' | 'low'
-  score: number
-  detectedAt?: string
-  tracks?: string[]
-  reasons?: string[]
-  responder?: string
-}
-
-async function rankedIncident(): Promise<RankedIncident> {
-  const response = await fetch('http://127.0.0.1:5173/api/local/cv-events/notify-first', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  })
-  const payload = await response.json() as {
-    success?: boolean
-    error?: string
-    data?: {
-      incidentId: string
-      cameraId: string
-      locationName: string
-      priority: 'high' | 'normal' | 'low'
-      queue: RankedIncident[]
-    }
-  }
-  if (!response.ok || !payload.success || !payload.data) {
-    throw new Error(payload.error || 'The ranked incident could not be loaded.')
-  }
-  const first = payload.data.queue[0]
-  if (!first || first.cameraId !== 'CAM-001' || first.priority !== 'high') {
-    throw new Error('CAM-001 is not the current P1 incident.')
-  }
-  return {
-    ...first,
-    incidentId: payload.data.incidentId,
-    detectedAt: new Date().toISOString(),
-    tracks: ['20', '1'],
-    reasons: ['a tracked vehicle flipped over', 'rollover is the first location sent to the authorized phone'],
-    responder: 'UNIT-12',
-  }
-}
-
 function sendRankedAlert(): Promise<{ ok: boolean; cameraId: string; detail: string }> {
   const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
   const python = resolve(repo, '.venv/bin/python')

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the existing CV pipeline and, only when it surfaces an incident, send it.
+"""Score stored tracking/motion results and send only surfaced incidents.
 
 Dry-run prints the event and does not contact DeepSpace.
 --submit-test sends one labeled TEST / DEMO EVENT through the same local
@@ -20,7 +20,7 @@ from cv.detect_collisions import TRACKS_PATH, analyze_camera, box_index, load_js
 from cv.analyze_motion import OUTPUT_PATH as MOTION_PATH  # noqa: E402
 from cv.notifyc_event import dump_event, event_from_cv, events_to_send, validate_event  # noqa: E402
 
-DEFAULT_BRIDGE = "http://127.0.0.1:8780"
+DEFAULT_BRIDGE = "http://127.0.0.1:5173"
 CAMERAS = [f"CAM-{index:03d}" for index in range(1, 11)]
 
 
@@ -56,7 +56,7 @@ def post_json(url: str, payload: dict) -> dict:
         return body
     except urllib.error.URLError as exc:
         print(f"[Bridge] DeepSpace is unavailable at {url}: {exc.reason}")
-        print("[Bridge] Start the app with: cd NotifYC && npx deepspace dev start")
+        print("[Bridge] Start the app with: cd deepspace && npm run dev")
         print("[Bridge] If it prints a different URL, set NOTIFYC_BRIDGE_URL.")
         return {"success": False, "error": str(exc.reason)}
     return body

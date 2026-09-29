@@ -422,16 +422,6 @@ def tracked_objects(
     return found
 
 
-def concat_boxes(first: Boxes, second: Boxes) -> tuple[Boxes, np.ndarray]:
-    if len(first) == 0:
-        return second, second.conf.numpy().copy() if len(second) else np.empty(0)
-    if len(second) == 0:
-        return first, first.conf.numpy().copy()
-    data = torch.cat([first.data, second.data], dim=0)
-    confidence = torch.cat([first.conf, second.conf], dim=0).numpy().copy()
-    return Boxes(data, first.orig_shape), confidence
-
-
 def process_clip(
     model: YOLO,
     tracker: BYTETracker,

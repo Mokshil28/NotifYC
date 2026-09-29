@@ -214,28 +214,6 @@ def project_pair(first, second):
     return {"time_s": time_s, "miss_px": miss, "heading_deg": heading, "relative_speed": math.sqrt(relative_sq)}
 
 
-def aspect_change(boxes, observations, track_id, pre, post):
-    def values(start, end):
-        found = []
-        for sample in observations:
-            if not start <= sample["timestamp"] <= end:
-                continue
-            item = boxes.get((sample["frame"], track_id))
-            if item is None or item["height"] <= 0:
-                continue
-            found.append(item["width"] / item["height"])
-        return found
-
-    before = values(*pre)
-    after = values(*post)
-    if len(before) < 3 or len(after) < 3 or median(before) <= 0:
-        return 0.0
-    change = abs(median(after) - median(before)) / median(before)
-    if change < ASPECT_CHANGE_MIN:
-        return 0.0
-    return min(1.0, change / 0.7)
-
-
 def score_episode(camera, pair, episode, observations, classes, boxes) -> dict | None:
     norms = [sample["normalized_separation"] for sample in episode]
     if min(norms) > CANDIDATE_NORM and max(sample["bbox_iou"] for sample in episode) < 0.02:

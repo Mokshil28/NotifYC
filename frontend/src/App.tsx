@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutations, useQuery, useAuthProfileReady, type RecordData } from "deepspace";
-import { callAppAction } from "@notifyc/domain/call-action";
 import { progressPlan, type ProgressStep } from "@notifyc/domain/assignment";
 import {
   activeIncidents,
-  countAvailableResponders,
   type Assignment,
   type Camera,
   type Incident,
@@ -165,15 +163,11 @@ function HomePage({
   setPage,
   cameras,
   active,
-  available,
-  highPriority,
   alert,
 }: {
   setPage: (page: Page) => void
   cameras: ViewCamera[]
   active: number
-  available: number
-  highPriority: number
   alert: Incident | null
 }) {
   return (
@@ -406,9 +400,6 @@ function ChannelPage({
   assignment,
   setPage,
   onAdvance,
-  onAssign,
-  onNotify,
-  notifyLabel,
   busy,
 }: {
   camera: ViewCamera | null
@@ -417,9 +408,6 @@ function ChannelPage({
   assignment: RecordData<Assignment> | null
   setPage: (page: Page) => void
   onAdvance: (step: ProgressStep) => void
-  onAssign: () => void
-  onNotify: () => void
-  notifyLabel: string
   busy: boolean
 }) {
   const next = assignment ? STEPS[assignment.data.status] : undefined;
@@ -535,7 +523,6 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [notifyLabel, setNotifyLabel] = useState("Notify police phone");
 
   const allIncidents = incidentsQuery.records.map((record) => record.data);
   const open = activeIncidents(incidentsQuery.records).map((record) => record.data).sort(compareOperational);
@@ -566,38 +553,6 @@ export default function App() {
     }
   }
 
-  async function notifyPolice() {
-    setBusy(true);
-    setNotifyLabel("Sending P1 notification");
-    try {
-      const response = await fetch("/api/local/cv-events/notify-first", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
-      const payload = await response.json() as { success?: boolean; data?: { cameraId?: string; detail?: string }; error?: string };
-      if (!response.ok || !payload.success || payload.data?.cameraId !== "CAM-001") {
-        setNotifyLabel(payload.error || payload.data?.detail || "Notification was not sent");
-        return;
-      }
-      setNotifyLabel("P1 sent to Photon phone");
-    } catch {
-      setNotifyLabel("Photon phone is not ready");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function assign() {
-    if (!selectedIncident) return;
-    setBusy(true);
-    try {
-      await callAppAction("assignResponder", { incidentId: selectedIncident.incidentId });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const ready = camerasQuery.status === "ready";
   return (
     <div className="app">
@@ -607,9 +562,7 @@ export default function App() {
         <HomePage
           active={open.length}
           alert={open[0] ?? null}
-          available={countAvailableResponders(respondersQuery.records)}
           cameras={cameras}
-          highPriority={open.filter((incident) => incident.priority === "high").length}
           setPage={navigate}
         />
       )}
@@ -628,10 +581,7 @@ export default function App() {
           busy={busy || !assignmentWrites.ready}
           camera={selectedCamera}
           incident={selectedIncident}
-          notifyLabel={notifyLabel}
           onAdvance={(step) => void advance(step)}
-          onAssign={() => void assign()}
-          onNotify={() => void notifyPolice()}
           responder={responder?.data ?? null}
           setPage={navigate}
         />
