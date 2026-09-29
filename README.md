@@ -18,34 +18,91 @@ The frontend and backend began as Figma Make and DeepSpace scaffolds and were ad
 
 ## How the pieces fit together
 
-The diagrams below describe the current code. Solid arrows are implemented paths;
-dashed arrows show the missing connection to a single source of incident evidence.
+Read these diagrams in order: **video analysis → application records → notification**.
+Each numbered box names the technology, its job, and what it produces. Solid
+arrows describe implemented paths. The dashed arrow marks work that is still
+missing; it does not represent an automatic connection.
+
+### A. Turn video into possible-collision evidence
 
 ```mermaid
-flowchart TB
-    Video["Local prerecorded camera clips"] --> Track["YOLO11n + ByteTrack<br/>track_objects.py"]
-    Track --> Tracks["tracks.json + annotated videos"]
-    Tracks --> Motion["analyze_motion.py<br/>trajectory and motion metrics"]
-    Motion --> Metrics["motion_analysis.json"]
-    Tracks --> Score["detect_collisions.py<br/>possible-collision scoring"]
-    Metrics --> Score
-    Score --> Results["results.json"]
-    Tracks --> Runner["run_notifyc_demo.py<br/>explicit scoring and submission command"]
-    Metrics --> Runner
-    Runner --> Event["notifyc_event.py<br/>structured event with evidence reference"]
-    Event --> Intake["Local CV intake<br/>validate, deduplicate, prioritize, assign"]
-    Intake --> Records["DeepSpace records<br/>incidents, responders, assignments"]
-    Records <--> UI["React dashboard<br/>queries and responder progress"]
-    Fixture["CV_REPORT constants<br/>fixed presentation reports"] --> UI
-    Records -. "not yet a unified evidence source" .-> P1["run_p1.py<br/>fixed CAM-001 notification input"]
-    P1 --> Brief["Briefing generation + validation<br/>Grok or deterministic fallback"]
-    Brief --> Delivery["Optional voice and Photon delivery"]
+flowchart TD
+    Input["Input: prerecorded MP4 clips<br/>data/cameras/cam_001.mp4 through cam_010.mp4"]
+    Read["1. Read frames — Python + OpenCV<br/>Decode video into images with frame numbers and timestamps"]
+    Detect["2. Detect road users — Ultralytics YOLO11n + PyTorch<br/>Pretrained model produces boxes, classes, and confidence per frame"]
+    Track["3. Associate detections — ByteTrack<br/>Match objects across frames and assign persistent track IDs"]
+    Raw["Tracking output — tracks.json<br/>Per-camera frames, track IDs, raw boxes, and centers"]
+    Render["Inspection video — OpenCV + display helpers<br/>Draw labels, stabilized overlays, and trajectory trails"]
+    Motion["4. Measure motion — Python geometry and time-series calculations<br/>analyze_motion.py derives motion metrics from stored trajectories"]
+    Metrics["Motion output — motion_analysis.json<br/>Stored measurements for later interaction analysis"]
+    Score["5. Evaluate interactions — Python heuristics<br/>detect_collisions.py combines box geometry and motion evidence<br/>Produces candidate diagnostics and surfaced possible collisions"]
+    Results["Analysis output — results.json<br/>Evidence for review; not confirmation of an accident"]
+    Input --> Read --> Detect --> Track --> Raw
+    Track --> Render
+    Raw --> Motion --> Metrics
+    Raw -- "boxes and participant IDs" --> Score
+    Metrics -- "motion evidence" --> Score
+    Score --> Results
 ```
 
-The submission runner re-scores **stored** tracks and motion; it does not rerun
-video detection or simply upload `results.json`. Starting the dashboard alone
-does not execute this flow. The fixed UI reports and P1 input are separate from
-the event-intake path, which is why they can disagree with a CV result.
+Steps 1–3 run inside `cv/track_objects.py`; steps 4 and 5 are separate commands.
+The annotated video helps inspect tracking, while downstream analysis uses
+stored measurements. A visually smoother box does not create new evidence.
+
+### B. Turn a surfaced event into dashboard state
+
+```mermaid
+flowchart TD
+    Stored["Input: tracks.json + motion_analysis.json<br/>Prepared by the video-analysis stages"]
+    Runner["6. Explicit submission command — Python<br/>scripts/run_notifyc_demo.py re-runs collision scoring on stored data<br/>It does not rerun detection or upload results.json"]
+    Gate{"Did the scorer surface an event?"}
+    Stop["No event: print result and stop<br/>No incident is created"]
+    Contract["7. Build an event — Python / notifyc_event.py<br/>Package event ID, camera, participants, metrics, timing,<br/>evidence file reference, and provenance; validate the payload"]
+    Intake["8. Accept and organize — TypeScript + Hono<br/>Local backend checks payload and duplicate event ID<br/>cv-ingest.ts creates the incident; priority.ts computes priority"]
+    Assign["9. Coordinate response — TypeScript domain logic<br/>routing.ts selects a nearest available simulated responder<br/>assignment.ts writes assignment and related status changes"]
+    Store["Shared state — DeepSpace + Cloudflare Durable Objects<br/>Record rooms store cameras, incidents, responders, and assignments<br/>An incident stays unassigned when routing cannot complete"]
+    UI["10. Display and update — React + TypeScript + Tailwind<br/>DeepSpace useQuery reads records for the camera wall and incident views<br/>useMutations writes responder progress; updates flow through record rooms"]
+    Fixed["Separate presentation input — CV_REPORT constants<br/>App.tsx still contains fixed incident descriptions"]
+    Stored --> Runner --> Gate
+    Gate -- "no" --> Stop
+    Gate -- "yes" --> Contract
+    Contract -- "HTTP POST /api/local/cv-events; skipped in dry-run" --> Intake
+    Intake --> Assign --> Store
+    Store -- "record subscriptions" --> UI
+    UI -- "confirmed progress writes" --> Store
+    Fixed -- "demo report content" --> UI
+```
+
+Submission is a deliberate CLI action. Starting the web app does not start CV
+processing. Camera records must already exist; duplicate event IDs are returned
+without creating another incident. Event evidence is a file reference, not an
+automatic video upload. The primary dashboard currently mixes record-backed
+state with fixed report text, so not everything visible comes from that event.
+
+### C. Generate and deliver the current demo notification
+
+```mermaid
+flowchart TD
+    Records["Actual incident records from step 9"]
+    Trigger["Current trigger — Node.js notify-bridge.ts<br/>Startup retry timer or POST /notify-first on port 8788"]
+    Fixture["11a. Prepare input — Python / briefing.run_p1<br/>Currently constructs a fixed CAM-001 event<br/>Does not select evidence from a fresh CV run"]
+    Brief["11b. Write briefing — Python + Grok<br/>Build an evidence-based prompt, request structured text,<br/>and parse/validate the response"]
+    Fallback["Python template fallback<br/>Used when the model is unavailable or its output is rejected"]
+    Check["11c. Check delivery text — Python<br/>Check briefing is sendable and create concise dispatch text"]
+    Voice["11d. Generate speech — ElevenLabs API<br/>Convert dispatch text into an audio file"]
+    Send["11e. Deliver — Node.js + Photon / Spectrum SDK<br/>Send text, audio, and optional video through an existing conversation"]
+    Phone["Output: phone notification<br/>Real delivery containing simulated incident/responder information"]
+    Records -. "missing: use this accepted event as the notification input" .-> Fixture
+    Trigger --> Fixture --> Brief
+    Brief -- "valid response" --> Check
+    Brief -- "missing key, failure, or rejection" --> Fallback --> Check
+    Check --> Voice --> Send --> Phone
+```
+
+Grok summarizes supplied evidence; it does not detect a collision or assign an
+officer. ElevenLabs and Photon are optional integrations for the project, but
+this particular P1 path requires successful voice generation before delivery.
+The fixed P1 input and fixed UI reports can disagree with actual CV output.
 
 ### What runs where
 
@@ -95,6 +152,27 @@ relationships, request sequences, module responsibilities, and current gaps.
 | Clip preparation and diagnostics | Python, FFmpeg | `scripts/` |
 
 The presentation UI imports schemas, domain code, and SDK packages from `deepspace/`, so both Node projects are needed.
+
+## Branches and project history
+
+**Use `main` for the complete project.** Frontend, backend, CV, and briefing code
+live together in directories in this branch; you do not switch branches to run
+a different component.
+
+```text
+main                         Current combined application and documentation
+└── archive/old-main (tag)    Historical snapshot, not an active development branch
+```
+
+The diagram above is a navigation guide, not a Git ancestry graph. The former
+`backup-old-main` and `cv-history` branches have been removed from GitHub.
+The old main snapshot is preserved under the `archive/old-main` tag; the earlier
+CV commits are already in `main` history. Tags preserve historical versions and
+do not receive new development commits.
+
+For new work, create a short-lived feature or fix branch, review and merge its
+changes into `main`, then delete that branch. This keeps one clear current
+version for reviewers while retaining the development history.
 
 ## Run the dashboard locally
 
