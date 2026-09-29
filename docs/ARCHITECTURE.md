@@ -1,7 +1,7 @@
 # NotifYC codebase map
 
 This is a map of the implementation, including its demo shortcuts. Start with the
-[README diagrams](../README.md#how-the-pieces-fit-together) for the whole system.
+[README workflow diagram](../README.md#how-the-pieces-fit-together) for the whole system.
 This document explains what each boundary does and where to look when changing it.
 
 ## 1. Video becomes measurements, then candidate evidence
@@ -179,8 +179,8 @@ flowchart TD
     Photon --> Phone["Phone message, audio, optional clip"]
 ```
 
-Voice is optional for the broader project, but this particular `run_p1.py` path
-currently returns a failure if voice generation fails.
+ElevenLabs provides speech and Photon provides phone delivery. The `run_p1.py`
+path currently returns a failure if voice generation fails.
 
 There are two easily confused endpoints:
 
